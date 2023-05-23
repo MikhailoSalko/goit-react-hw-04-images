@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Notiflix from 'notiflix';
 import Searchbar from './Searchbar/Searchbar';
 import Loader from './Loader/Loader';
@@ -21,100 +21,87 @@ Notiflix.Notify.init({
   timeout: 4000,
 });
 
-class App extends Component {
-  state = {
-    searchQuery: '',
-    hits: [],
-    page: 1,
-    error: null,
-    isLoading: false,
-    showModal: false,
-    modalPhoto: null,
-  };
+function App() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [hits, setHits] = useState([]);
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalPhoto, setModalPhoto] = useState(null);
 
-  componentDidUpdate(_, prevState) {
-    const { searchQuery: prevSearchQuery, page: prevPage } = prevState;
-    const { searchQuery: newSearchQuery, page: nextPage } = this.state;
-
-    if (prevSearchQuery !== newSearchQuery || prevPage !== nextPage) {
-      // console.log(this.state.searchQuery);
-      this.setState({ isLoading: true });
-      fetchPhotos(newSearchQuery, nextPage)
-        .then(data => {
-          // console.log(data);
-          if (data.total === 0) {
-            return Notiflix.Report.info('There are no photos per your request');
-          }
-          return this.setState(({ hits }) => {
-            return { hits: [...hits, ...data.hits] };
-          });
-        })
-        .catch(error => this.setState({ error: error.message }))
-        .finally(() => this.setState({ isLoading: false }));
-    }
-  }
-
-  getSearchQuery = searchQuery => {
-    if (searchQuery === this.state.searchQuery) {
+  const getSearchQuery = search => {
+    if (search === searchQuery) {
       return Notiflix.Notify.info(
         'We are already showing photos at your request'
       );
     }
-
-    return this.setState({ searchQuery, hits: [], page: 1 });
+    setSearchQuery(search);
+    setHits([]);
+    setPage(1);
+    return;
   };
 
-  updatePageByLoadMoreBtn = () => {
-    this.setState(({ page }) => {
-      return { page: page + 1 };
+  useEffect(() => {
+    if (!searchQuery) {
+      return;
+    }
+    setLoading(true);
+    fetchPhotos(searchQuery, page)
+      .then(({ hits, total }) => {
+        if (total === 0) {
+          return Notiflix.Report.info('There are no photos per your request');
+        }
+        return setHits(prevHits => {
+          return [...prevHits, ...hits];
+        });
+      })
+      .catch(error => setError(error.message))
+      .finally(() => setLoading(false));
+  }, [searchQuery, page]);
+
+  const updatePageByLoadMoreBtn = () => {
+    setPage(prevPage => prevPage + 1);
+  };
+
+  const openModal = ({ largeImageURL, tags }) => {
+    setShowModal(true);
+    setModalPhoto({
+      largeImageURL,
+      tags,
     });
   };
 
-  openModal = ({ largeImageURL, tags }) => {
-    this.setState({
-      showModal: true,
-      modalPhoto: {
-        largeImageURL,
-        tags,
-      },
-    });
+  const closeModal = () => {
+    setShowModal(false);
+    setModalPhoto(null);
   };
 
-  closeModal = () => {
-    this.setState({ showModal: false, modalPhoto: null });
-  };
-
-  render() {
-    const { hits, isLoading, showModal, error, modalPhoto } = this.state;
-
-    return (
-      <div
-        style={{
-          height: '100px',
-          fontSize: 40,
-          color: '#010101',
-          display: 'grid',
-          gridTemplateColumns: '1fr',
-          gridGap: '16px',
-          paddingBottom: '24px',
-        }}
-      >
-        {error &&
-          Notiflix.Report.failure(
-            'Something went wrong, please try again later'
-          )}
-        <Searchbar onSubmit={this.getSearchQuery} />
-        <ImageGallery hits={hits} onClick={this.openModal} />
-        {showModal && (
-          <Modal onClose={this.closeModal}>
-            <ModalPhoto {...modalPhoto} />
-          </Modal>
-        )}
-        {hits.length > 0 && <Button onClick={this.updatePageByLoadMoreBtn} />}
-        {isLoading && <Loader />}
-      </div>
-    );
-  }
+  return (
+    <div
+      style={{
+        height: '100px',
+        fontSize: 40,
+        color: '#010101',
+        display: 'grid',
+        gridTemplateColumns: '1fr',
+        gridGap: '16px',
+        paddingBottom: '24px',
+      }}
+    >
+      {error &&
+        Notiflix.Report.failure('Something went wrong, please try again later')}
+      <Searchbar onSubmit={getSearchQuery} />
+      <ImageGallery hits={hits} onClick={openModal} />
+      {showModal && (
+        <Modal onClose={closeModal}>
+          <ModalPhoto {...modalPhoto} />
+        </Modal>
+      )}
+      {hits.length > 0 && <Button onClick={updatePageByLoadMoreBtn} />}
+      {loading && <Loader />}
+    </div>
+  );
 }
 
 export default App;
