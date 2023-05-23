@@ -9,7 +9,6 @@ const modalRoot = document.querySelector('#modal-root');
 function Modal({ children, onClose }) {
   const closeModal = useCallback(
     ({ target, currentTarget, code }) => {
-      // console.log(code);
       if (target === currentTarget || code === 'Escape') {
         onClose();
       }
